@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -307,12 +307,10 @@ public class NioSctpChannel extends AbstractNioMessageChannel implements io.nett
             }
         }
         ByteBuffer nioData;
-        if (!needsCopy) {
-            nioData = data.nioBuffer();
-        } else {
+        if (needsCopy) {
             data = alloc.directBuffer(dataLen).writeBytes(data);
-            nioData = data.nioBuffer();
         }
+        nioData = data.nioBuffer();
         final MessageInfo mi = MessageInfo.createOutgoing(association(), null, packet.streamIdentifier());
         mi.payloadProtocolID(packet.protocolIdentifier());
         mi.streamNumber(packet.streamIdentifier());

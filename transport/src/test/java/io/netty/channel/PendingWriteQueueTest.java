@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -262,6 +263,30 @@ public class PendingWriteQueueTest {
         assertEquals(1L, channel.readOutbound());
         assertEquals(2L, channel.readOutbound());
         assertEquals(3L, channel.readOutbound());
+    }
+
+    @Test
+    public void testRemoveAndWriteAllWithVoidPromise() {
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                // Convert to writeAndFlush(...) so the promise will be notified by the transport.
+                ctx.writeAndFlush(msg, promise);
+            }
+        }, new ChannelOutboundHandlerAdapter());
+
+        final PendingWriteQueue queue = new PendingWriteQueue(channel.pipeline().lastContext());
+
+        ChannelPromise promise = channel.newPromise();
+        queue.add(1L, promise);
+        queue.add(2L, channel.voidPromise());
+        queue.removeAndWriteAll();
+
+        assertTrue(channel.finish());
+        assertTrue(promise.isDone());
+        assertTrue(promise.isSuccess());
+        assertEquals(1L, channel.readOutbound());
+        assertEquals(2L, channel.readOutbound());
     }
 
     @Test

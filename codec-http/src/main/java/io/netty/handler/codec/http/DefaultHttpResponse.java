@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -14,6 +14,8 @@
  * under the License.
  */
 package io.netty.handler.codec.http;
+
+import io.netty.util.internal.ObjectUtil;
 
 import static io.netty.util.internal.ObjectUtil.checkNotNull;
 
@@ -88,10 +90,7 @@ public class DefaultHttpResponse extends DefaultHttpMessage implements HttpRespo
 
     @Override
     public HttpResponse setStatus(HttpResponseStatus status) {
-        if (status == null) {
-            throw new NullPointerException("status");
-        }
-        this.status = status;
+        this.status = ObjectUtil.checkNotNull(status, "status");
         return this;
     }
 
@@ -104,5 +103,24 @@ public class DefaultHttpResponse extends DefaultHttpMessage implements HttpRespo
     @Override
     public String toString() {
         return HttpMessageUtil.appendResponse(new StringBuilder(256), this).toString();
+    }
+
+    @Override
+    public int hashCode() {
+        int result = 1;
+        result = 31 * result + status.hashCode();
+        result = 31 * result + super.hashCode();
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof DefaultHttpResponse)) {
+            return false;
+        }
+
+        DefaultHttpResponse other = (DefaultHttpResponse) o;
+
+        return status.equals(other.status()) && super.equals(o);
     }
 }

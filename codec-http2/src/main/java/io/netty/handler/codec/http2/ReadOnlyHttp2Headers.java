@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -17,6 +17,7 @@ package io.netty.handler.codec.http2;
 
 import io.netty.handler.codec.Headers;
 import io.netty.util.AsciiString;
+import io.netty.util.HashingStrategy;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,9 +28,11 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import static io.netty.handler.codec.CharSequenceValueConverter.INSTANCE;
-import static io.netty.handler.codec.http2.DefaultHttp2Headers.HTTP2_NAME_VALIDATOR;
-import static io.netty.util.internal.EmptyArrays.EMPTY_ASCII_STRINGS;
+import static io.netty.handler.codec.CharSequenceValueConverter.*;
+import static io.netty.handler.codec.http2.DefaultHttp2Headers.*;
+import static io.netty.util.AsciiString.*;
+import static io.netty.util.internal.EmptyArrays.*;
+import static io.netty.util.internal.ObjectUtil.checkNotNullArrayParam;
 
 /**
  * A variant of {@link Http2Headers} which only supports read-only methods.
@@ -130,9 +133,7 @@ public final class ReadOnlyHttp2Headers implements Http2Headers {
         // We are only validating values... so start at 1 and go until end.
         for (int i = 1; i < pseudoHeaders.length; i += 2) {
             // pseudoHeaders names are only set internally so they are assumed to be valid.
-            if (pseudoHeaders[i] == null) {
-                throw new IllegalArgumentException("pseudoHeaders value at index " + i + " is null");
-            }
+            checkNotNullArrayParam(pseudoHeaders[i], i, "pseudoHeaders");
         }
 
         boolean seenNonPseudoHeader = false;
@@ -146,9 +147,7 @@ public final class ReadOnlyHttp2Headers implements Http2Headers {
                 throw new IllegalArgumentException(
                      "otherHeaders name at index " + i + " is a pseudo header that appears after non-pseudo headers.");
             }
-            if (otherHeaders[i + 1] == null) {
-                throw new IllegalArgumentException("otherHeaders value at index " + (i + 1) + " is null");
-            }
+            checkNotNullArrayParam(otherHeaders[i + 1], i + 1, "otherHeaders");
         }
     }
 
@@ -428,29 +427,7 @@ public final class ReadOnlyHttp2Headers implements Http2Headers {
 
     @Override
     public boolean contains(CharSequence name, CharSequence value) {
-        final int nameHash = AsciiString.hashCode(name);
-        final int valueHash = AsciiString.hashCode(value);
-
-        final int pseudoHeadersEnd = pseudoHeaders.length - 1;
-        for (int i = 0; i < pseudoHeadersEnd; i += 2) {
-            AsciiString roName = pseudoHeaders[i];
-            AsciiString roValue = pseudoHeaders[i + 1];
-            if (roName.hashCode() == nameHash && roValue.hashCode() == valueHash &&
-                roName.contentEqualsIgnoreCase(name) && roValue.contentEqualsIgnoreCase(value)) {
-                return true;
-            }
-        }
-
-        final int otherHeadersEnd = otherHeaders.length - 1;
-        for (int i = 0; i < otherHeadersEnd; i += 2) {
-            AsciiString roName = otherHeaders[i];
-            AsciiString roValue = otherHeaders[i + 1];
-            if (roName.hashCode() == nameHash && roValue.hashCode() == valueHash &&
-                roName.contentEqualsIgnoreCase(name) && roValue.contentEqualsIgnoreCase(value)) {
-                return true;
-            }
-        }
-        return false;
+        return contains(name, value, false);
     }
 
     @Override
@@ -770,6 +747,31 @@ public final class ReadOnlyHttp2Headers implements Http2Headers {
     }
 
     @Override
+    public boolean contains(CharSequence name, CharSequence value, boolean caseInsensitive) {
+        final int nameHash = AsciiString.hashCode(name);
+        final HashingStrategy<CharSequence> strategy =
+                caseInsensitive ? CASE_INSENSITIVE_HASHER : CASE_SENSITIVE_HASHER;
+        final int valueHash = strategy.hashCode(value);
+
+        return contains(name, nameHash, value, valueHash, strategy, otherHeaders)
+                || contains(name, nameHash, value, valueHash, strategy, pseudoHeaders);
+    }
+
+    private static boolean contains(CharSequence name, int nameHash, CharSequence value, int valueHash,
+                                    HashingStrategy<CharSequence> hashingStrategy, AsciiString[] headers) {
+        final int headersEnd = headers.length - 1;
+        for (int i = 0; i < headersEnd; i += 2) {
+            AsciiString roName = headers[i];
+            AsciiString roValue = headers[i + 1];
+            if (roName.hashCode() == nameHash && roValue.hashCode() == valueHash &&
+                roName.contentEqualsIgnoreCase(name) && hashingStrategy.equals(roValue, value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
     public String toString() {
         StringBuilder builder = new StringBuilder(getClass().getSimpleName()).append('[');
         String separator = "";
@@ -818,12 +820,14 @@ public final class ReadOnlyHttp2Headers implements Http2Headers {
             for (; i < current.length; i += 2) {
                 AsciiString roName = current[i];
                 if (roName.hashCode() == nameHash && roName.contentEqualsIgnoreCase(name)) {
-                    next = current[i + 1];
-                    i += 2;
+                    if (i + 1 < current.length) {
+                        next = current[i + 1];
+                        i += 2;
+                    }
                     return;
                 }
             }
-            if (i >= current.length && current == pseudoHeaders) {
+            if (current == pseudoHeaders) {
                 i = 0;
                 current = otherHeaders;
                 calculateNext();

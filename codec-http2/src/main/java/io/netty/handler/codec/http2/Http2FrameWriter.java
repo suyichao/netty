@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -147,11 +147,11 @@ public interface Http2FrameWriter extends Http2DataWriter, Closeable {
      * @param ctx the context to use for writing.
      * @param ack indicates whether this is an ack of a PING frame previously received from the
      *            remote endpoint.
-     * @param data the payload of the frame. This will be released by this method.
+     * @param data the payload of the frame.
      * @param promise the promise for the write.
      * @return the future for the write.
      */
-    ChannelFuture writePing(ChannelHandlerContext ctx, boolean ack, ByteBuf data,
+    ChannelFuture writePing(ChannelHandlerContext ctx, boolean ack, long data,
             ChannelPromise promise);
 
     /**

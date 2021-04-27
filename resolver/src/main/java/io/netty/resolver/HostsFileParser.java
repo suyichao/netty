@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -17,18 +17,19 @@ package io.netty.resolver;
 
 import io.netty.util.NetUtil;
 import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.UnstableApi;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -41,7 +42,6 @@ import static io.netty.util.internal.ObjectUtil.*;
 /**
  * A parser for hosts files.
  */
-@UnstableApi
 public final class HostsFileParser {
 
     private static final String WINDOWS_DEFAULT_SYSTEM_ROOT = "C:\\Windows";
@@ -66,22 +66,35 @@ public final class HostsFileParser {
     }
 
     /**
-     * Parse hosts file at standard OS location.
+     * Parse hosts file at standard OS location using the systems default {@link Charset} for decoding.
      *
      * @return a {@link HostsFileEntries}
      */
     public static HostsFileEntries parseSilently() {
+        return parseSilently(Charset.defaultCharset());
+    }
+
+    /**
+     * Parse hosts file at standard OS location using the given {@link Charset}s one after each other until
+     * we were able to parse something or none is left.
+     *
+     * @param charsets the {@link Charset}s to try as file encodings when parsing.
+     * @return a {@link HostsFileEntries}
+     */
+    public static HostsFileEntries parseSilently(Charset... charsets) {
         File hostsFile = locateHostsFile();
         try {
-            return parse(hostsFile);
+            return parse(hostsFile, charsets);
         } catch (IOException e) {
-            logger.warn("Failed to load and parse hosts file at " + hostsFile.getPath(), e);
+            if (logger.isWarnEnabled()) {
+                logger.warn("Failed to load and parse hosts file at " + hostsFile.getPath(), e);
+            }
             return HostsFileEntries.EMPTY;
         }
     }
 
     /**
-     * Parse hosts file at standard OS location.
+     * Parse hosts file at standard OS location using the system default {@link Charset} for decoding.
      *
      * @return a {@link HostsFileEntries}
      * @throws IOException file could not be read
@@ -91,19 +104,42 @@ public final class HostsFileParser {
     }
 
     /**
-     * Parse a hosts file.
+     * Parse a hosts file using the system default {@link Charset} for decoding.
      *
      * @param file the file to be parsed
      * @return a {@link HostsFileEntries}
      * @throws IOException file could not be read
      */
     public static HostsFileEntries parse(File file) throws IOException {
+        return parse(file, Charset.defaultCharset());
+    }
+
+    /**
+     * Parse a hosts file.
+     *
+     * @param file the file to be parsed
+     * @param charsets the {@link Charset}s to try as file encodings when parsing.
+     * @return a {@link HostsFileEntries}
+     * @throws IOException file could not be read
+     */
+    public static HostsFileEntries parse(File file, Charset... charsets) throws IOException {
         checkNotNull(file, "file");
+        checkNotNull(charsets, "charsets");
         if (file.exists() && file.isFile()) {
-            return parse(new BufferedReader(new FileReader(file)));
-        } else {
-            return HostsFileEntries.EMPTY;
+            for (Charset charset: charsets) {
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(new FileInputStream(file), charset));
+                try {
+                    HostsFileEntries entries = parse(reader);
+                    if (entries != HostsFileEntries.EMPTY) {
+                        return entries;
+                    }
+                } finally {
+                    reader.close();
+                }
+            }
         }
+        return HostsFileEntries.EMPTY;
     }
 
     /**

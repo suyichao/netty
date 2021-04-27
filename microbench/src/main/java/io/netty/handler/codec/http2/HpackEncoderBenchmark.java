@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -21,7 +21,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -79,7 +79,7 @@ public class HpackEncoderBenchmark extends AbstractMicrobenchmark {
 
     @Setup(Level.Trial)
     public void setup() {
-        http2Headers = HpackUtil.http2Headers(size, limitToAscii);
+        http2Headers = HpackBenchmarkUtil.http2Headers(size, limitToAscii);
         if (duplicates) {
             int size = http2Headers.size();
             if (size > 0) {

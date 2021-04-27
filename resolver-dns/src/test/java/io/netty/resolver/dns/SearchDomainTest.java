@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -33,12 +33,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 public class SearchDomainTest {
@@ -104,8 +104,10 @@ public class SearchDomainTest {
         // "host2" not resolved
         assertNotResolve(resolver, "host2");
 
-        // "host3" does not contain a dot or is not absolute
-        assertNotResolve(resolver, "host3");
+        // "host3" does not contain a dot nor it's absolute but it should still be resolved after search list have
+        // been checked
+        resolved = assertResolve(resolver, "host3");
+        assertEquals(store.getAddress("host3"), resolved);
 
         // "host3." does not contain a dot but is absolute
         resolved = assertResolve(resolver, "host3.");
@@ -152,8 +154,10 @@ public class SearchDomainTest {
         // "host2" not resolved
         assertNotResolveAll(resolver, "host2");
 
-        // "host3" does not contain a dot or is not absolute
-        assertNotResolveAll(resolver, "host3");
+        // "host3" does not contain a dot nor it's absolute but it should still be resolved after search list have
+        // been checked
+        resolved = assertResolveAll(resolver, "host3");
+        assertEquals(store.getAddresses("host3"), resolved);
 
         // "host3." does not contain a dot but is absolute
         resolved = assertResolveAll(resolver, "host3.");
@@ -191,7 +195,7 @@ public class SearchDomainTest {
         resolved = assertResolve(resolver, "host2");
         assertEquals(store.getAddress("host2.bar.com"), resolved);
 
-        // "host3" resolves via the the "foo.com" search path as it is the first one
+        // "host3" resolves via the "foo.com" search path as it is the first one
         resolved = assertResolve(resolver, "host3");
         assertEquals(store.getAddress("host3.foo.com"), resolved);
 
@@ -281,7 +285,7 @@ public class SearchDomainTest {
         dnsServer = new TestDnsServer(store);
         dnsServer.start();
 
-        resolver = newResolver().searchDomains(Collections.singletonList("foo.com")).ndots(2).build();
+        resolver = newResolver().searchDomains(Collections.singletonList("foo.com")).ndots(1).build();
 
         Future<InetAddress> fut = resolver.resolve("unknown.hostname");
         assertTrue(fut.await(10, TimeUnit.SECONDS));
@@ -293,12 +297,12 @@ public class SearchDomainTest {
     }
 
     @Test
-    public void testExceptionMsgDoesNotContainSearchDomainIfNdotsNotHighEnough() throws Exception {
+    public void testExceptionMsgDoesNotContainSearchDomainIfNdotsIsNotReached() throws Exception {
         TestDnsServer.MapRecordStoreA store = new TestDnsServer.MapRecordStoreA(Collections.<String>emptySet());
         dnsServer = new TestDnsServer(store);
         dnsServer.start();
 
-        resolver = newResolver().searchDomains(Collections.singletonList("foo.com")).ndots(1).build();
+        resolver = newResolver().searchDomains(Collections.singletonList("foo.com")).ndots(2).build();
 
         Future<InetAddress> fut = resolver.resolve("unknown.hostname");
         assertTrue(fut.await(10, TimeUnit.SECONDS));

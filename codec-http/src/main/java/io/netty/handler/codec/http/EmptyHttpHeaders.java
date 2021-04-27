@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -29,15 +29,15 @@ public class EmptyHttpHeaders extends HttpHeaders {
     public static final EmptyHttpHeaders INSTANCE = instance();
 
     /**
+     * @see InstanceInitializer#EMPTY_HEADERS
      * @deprecated Use {@link EmptyHttpHeaders#INSTANCE}
      * <p>
-     * This is needed to break a cyclic static initialization loop between {@link HttpHeaders} and
-     * {@link EmptyHttpHeaders}.
-     * @see HttpUtil#EMPTY_HEADERS
+     * This is needed to break a cyclic static initialization loop between {@link HttpHeaders} and {@link
+     * EmptyHttpHeaders}.
      */
     @Deprecated
     static EmptyHttpHeaders instance() {
-        return HttpUtil.EMPTY_HEADERS;
+        return InstanceInitializer.EMPTY_HEADERS;
     }
 
     protected EmptyHttpHeaders() {
@@ -166,5 +166,23 @@ public class EmptyHttpHeaders extends HttpHeaders {
     @Override
     public Iterator<Entry<CharSequence, CharSequence>> iteratorCharSequence() {
         return EMPTY_CHARS_ITERATOR;
+    }
+
+    /**
+     * This class is needed to break a cyclic static initialization loop between {@link HttpHeaders} and
+     * {@link EmptyHttpHeaders}.
+     */
+    @Deprecated
+    private static final class InstanceInitializer {
+        /**
+         * The instance is instantiated here to break the cyclic static initialization between {@link EmptyHttpHeaders}
+         * and {@link HttpHeaders}. The issue is that if someone accesses {@link EmptyHttpHeaders#INSTANCE} before
+         * {@link HttpHeaders#EMPTY_HEADERS} then {@link HttpHeaders#EMPTY_HEADERS} will be {@code null}.
+         */
+        @Deprecated
+        private static final EmptyHttpHeaders EMPTY_HEADERS = new EmptyHttpHeaders();
+
+        private InstanceInitializer() {
+        }
     }
 }

@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -191,7 +191,7 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
      */
     public boolean isReusePort() {
         try {
-            return channel.socket.isReusePort();
+            return ((EpollServerSocketChannel) channel).socket.isReusePort();
         } catch (IOException e) {
             throw new ChannelException(e);
         }
@@ -206,7 +206,7 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
      */
     public EpollServerSocketChannelConfig setReusePort(boolean reusePort) {
         try {
-            channel.socket.setReusePort(reusePort);
+            ((EpollServerSocketChannel) channel).socket.setReusePort(reusePort);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -214,24 +214,24 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
     }
 
     /**
-     * Returns {@code true} if <a href="http://man7.org/linux/man-pages/man7/ip.7.html">IP_FREEBIND</a> is enabled,
+     * Returns {@code true} if <a href="https://man7.org/linux/man-pages/man7/ip.7.html">IP_FREEBIND</a> is enabled,
      * {@code false} otherwise.
      */
     public boolean isFreeBind() {
         try {
-            return channel.socket.isIpFreeBind();
+            return ((EpollServerSocketChannel) channel).socket.isIpFreeBind();
         } catch (IOException e) {
             throw new ChannelException(e);
         }
     }
 
     /**
-     * If {@code true} is used <a href="http://man7.org/linux/man-pages/man7/ip.7.html">IP_FREEBIND</a> is enabled,
+     * If {@code true} is used <a href="https://man7.org/linux/man-pages/man7/ip.7.html">IP_FREEBIND</a> is enabled,
      * {@code false} for disable it. Default is disabled.
      */
     public EpollServerSocketChannelConfig setFreeBind(boolean freeBind) {
         try {
-            channel.socket.setIpFreeBind(freeBind);
+            ((EpollServerSocketChannel) channel).socket.setIpFreeBind(freeBind);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -239,24 +239,24 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
     }
 
     /**
-     * Returns {@code true} if <a href="http://man7.org/linux/man-pages/man7/ip.7.html">IP_TRANSPARENT</a> is enabled,
+     * Returns {@code true} if <a href="https://man7.org/linux/man-pages/man7/ip.7.html">IP_TRANSPARENT</a> is enabled,
      * {@code false} otherwise.
      */
     public boolean isIpTransparent() {
         try {
-            return channel.socket.isIpTransparent();
+            return ((EpollServerSocketChannel) channel).socket.isIpTransparent();
         } catch (IOException e) {
             throw new ChannelException(e);
         }
     }
 
     /**
-     * If {@code true} is used <a href="http://man7.org/linux/man-pages/man7/ip.7.html">IP_TRANSPARENT</a> is enabled,
+     * If {@code true} is used <a href="https://man7.org/linux/man-pages/man7/ip.7.html">IP_TRANSPARENT</a> is enabled,
      * {@code false} for disable it. Default is disabled.
      */
     public EpollServerSocketChannelConfig setIpTransparent(boolean transparent) {
         try {
-            channel.socket.setIpTransparent(transparent);
+            ((EpollServerSocketChannel) channel).socket.setIpTransparent(transparent);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -268,7 +268,7 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
      */
     public EpollServerSocketChannelConfig setTcpDeferAccept(int deferAccept) {
         try {
-            channel.socket.setTcpDeferAccept(deferAccept);
+            ((EpollServerSocketChannel) channel).socket.setTcpDeferAccept(deferAccept);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -276,11 +276,11 @@ public final class EpollServerSocketChannelConfig extends EpollServerChannelConf
     }
 
     /**
-     * Returns a positive value if <a href="http://linux.die.net/man/7/tcp">TCP_DEFER_ACCEPT</a> is enabled.
+     * Returns a positive value if <a href="https://linux.die.net//man/7/tcp">TCP_DEFER_ACCEPT</a> is enabled.
      */
     public int getTcpDeferAccept() {
         try {
-            return channel.socket.getTcpDeferAccept();
+            return ((EpollServerSocketChannel) channel).socket.getTcpDeferAccept();
         } catch (IOException e) {
             throw new ChannelException(e);
         }

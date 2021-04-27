@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -105,6 +105,37 @@ public class DefaultPriorityQueueTest {
 
         assertOffer(queue, d);
         assertSame(c, queue.peek());
+    }
+
+    @Test
+    public void testClearIgnoringIndexes() {
+        PriorityQueue<TestElement> queue = new DefaultPriorityQueue<TestElement>(TestElementComparator.INSTANCE, 0);
+        assertEmptyQueue(queue);
+
+        TestElement a = new TestElement(5);
+        TestElement b = new TestElement(10);
+        TestElement c = new TestElement(2);
+        TestElement d = new TestElement(6);
+        TestElement e = new TestElement(11);
+
+        assertOffer(queue, a);
+        assertOffer(queue, b);
+        assertOffer(queue, c);
+        assertOffer(queue, d);
+
+        queue.clearIgnoringIndexes();
+        assertEmptyQueue(queue);
+
+        // Elements cannot be re-inserted but new ones can.
+        try {
+            queue.offer(a);
+            fail();
+        } catch (IllegalArgumentException t) {
+            // expected
+        }
+
+        assertOffer(queue, e);
+        assertSame(e, queue.peek());
     }
 
     @Test

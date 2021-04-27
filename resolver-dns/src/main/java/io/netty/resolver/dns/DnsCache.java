@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -17,7 +17,6 @@ package io.netty.resolver.dns;
 
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.dns.DnsRecord;
-import io.netty.util.internal.UnstableApi;
 
 import java.net.InetAddress;
 import java.util.List;
@@ -25,7 +24,6 @@ import java.util.List;
 /**
  * A cache for DNS resolution entries.
  */
-@UnstableApi
 public interface DnsCache {
 
     /**
@@ -65,6 +63,8 @@ public interface DnsCache {
 
     /**
      * Cache the resolution failure for a given hostname.
+     * Be aware this <strong>won't</strong> be called with timeout / cancel / transport exceptions.
+      *
      * @param hostname the hostname
      * @param additionals the additional records
      * @param cause the resolution failure

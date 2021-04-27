@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -47,8 +47,8 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -294,12 +294,14 @@ public class DefaultHttp2ConnectionTest {
         assertEquals(State.HALF_CLOSED_REMOTE, stream.state());
         assertEquals(2, client.numActiveStreams());
         assertEquals(4, client.remote().lastStreamCreated());
+        assertTrue(stream.isHeadersReceived());
 
         stream = client.local().createStream(3, true);
         assertEquals(3, stream.id());
         assertEquals(State.HALF_CLOSED_LOCAL, stream.state());
         assertEquals(3, client.numActiveStreams());
         assertEquals(3, client.local().lastStreamCreated());
+        assertTrue(stream.isHeadersSent());
 
         stream = client.local().createStream(5, false);
         assertEquals(5, stream.id());
@@ -368,6 +370,18 @@ public class DefaultHttp2ConnectionTest {
         incrementAndGetStreamShouldRespectOverflow(client.local(), MAX_VALUE);
     }
 
+    @Test
+    public void clientLocalCreateStreamExhaustedSpace() throws Http2Exception {
+        client.local().createStream(MAX_VALUE, true);
+        try {
+            client.local().createStream(MAX_VALUE, true);
+            fail();
+        } catch (Http2Exception expected) {
+            assertEquals(Http2Error.REFUSED_STREAM, expected.error());
+            assertEquals(Http2Exception.ShutdownHint.GRACEFUL_SHUTDOWN, expected.shutdownHint());
+        }
+    }
+
     @Test(expected = Http2Exception.class)
     public void newStreamBehindExpectedShouldThrow() throws Http2Exception {
         server.local().createStream(0, true);
@@ -421,9 +435,27 @@ public class DefaultHttp2ConnectionTest {
     }
 
     @Test(expected = Http2Exception.class)
-    public void goAwayReceivedShouldDisallowCreation() throws Http2Exception {
+    public void goAwayReceivedShouldDisallowLocalCreation() throws Http2Exception {
+        server.goAwayReceived(0, 1L, Unpooled.EMPTY_BUFFER);
+        server.local().createStream(3, true);
+    }
+
+    @Test
+    public void goAwayReceivedShouldAllowRemoteCreation() throws Http2Exception {
         server.goAwayReceived(0, 1L, Unpooled.EMPTY_BUFFER);
         server.remote().createStream(3, true);
+    }
+
+    @Test(expected = Http2Exception.class)
+    public void goAwaySentShouldDisallowRemoteCreation() throws Http2Exception {
+        server.goAwaySent(0, 1L, Unpooled.EMPTY_BUFFER);
+        server.remote().createStream(2, true);
+    }
+
+    @Test
+    public void goAwaySentShouldAllowLocalCreation() throws Http2Exception {
+        server.goAwaySent(0, 1L, Unpooled.EMPTY_BUFFER);
+        server.local().createStream(2, true);
     }
 
     @Test
@@ -604,7 +636,7 @@ public class DefaultHttp2ConnectionTest {
         private final boolean[] array;
         private final int index;
 
-        public ListenerExceptionThrower(boolean[] array, int index) {
+        ListenerExceptionThrower(boolean[] array, int index) {
             this.array = array;
             this.index = index;
         }
@@ -620,7 +652,7 @@ public class DefaultHttp2ConnectionTest {
         private final boolean[] array;
         private final int index;
 
-        public ListenerVerifyCallAnswer(boolean[] array, int index) {
+        ListenerVerifyCallAnswer(boolean[] array, int index) {
             this.array = array;
             this.index = index;
         }

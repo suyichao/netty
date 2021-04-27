@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -532,53 +532,90 @@ final class UnsafeByteBufUtil {
 
     static void setBytes(AbstractByteBuf buf, long addr, int index, byte[] src, int srcIndex, int length) {
         buf.checkIndex(index, length);
+        // we need to check not null for src as it may cause the JVM crash
+        // See https://github.com/netty/netty/issues/10791
+        checkNotNull(src, "src");
+        if (isOutOfBounds(srcIndex, length, src.length)) {
+            throw new IndexOutOfBoundsException("srcIndex: " + srcIndex);
+        }
+
         if (length != 0) {
             PlatformDependent.copyMemory(src, srcIndex, addr, length);
         }
     }
 
     static void setBytes(AbstractByteBuf buf, long addr, int index, ByteBuffer src) {
-        buf.checkIndex(index, src.remaining());
-
-        int length = src.remaining();
+        final int length = src.remaining();
         if (length == 0) {
             return;
         }
 
         if (src.isDirect()) {
+            buf.checkIndex(index, length);
             // Copy from direct memory
             long srcAddress = PlatformDependent.directBufferAddress(src);
-            PlatformDependent.copyMemory(srcAddress + src.position(), addr, src.remaining());
+            PlatformDependent.copyMemory(srcAddress + src.position(), addr, length);
             src.position(src.position() + length);
         } else if (src.hasArray()) {
+            buf.checkIndex(index, length);
             // Copy from array
             PlatformDependent.copyMemory(src.array(), src.arrayOffset() + src.position(), addr, length);
             src.position(src.position() + length);
         } else {
-            ByteBuf tmpBuf = buf.alloc().heapBuffer(length);
-            try {
-                byte[] tmp = tmpBuf.array();
-                src.get(tmp, tmpBuf.arrayOffset(), length); // moves the src position too
-                PlatformDependent.copyMemory(tmp, tmpBuf.arrayOffset(), addr, length);
-            } finally {
-                tmpBuf.release();
+            if (length < 8) {
+                setSingleBytes(buf, addr, index, src, length);
+            } else {
+                //no need to checkIndex: internalNioBuffer is already taking care of it
+                assert buf.nioBufferCount() == 1;
+                final ByteBuffer internalBuffer = buf.internalNioBuffer(index, length);
+                internalBuffer.put(src);
             }
         }
+    }
+
+    private static void setSingleBytes(final AbstractByteBuf buf, final long addr, final int index,
+                                       final ByteBuffer src, final int length) {
+        buf.checkIndex(index, length);
+        final int srcPosition = src.position();
+        final int srcLimit = src.limit();
+        long dstAddr = addr;
+        for (int srcIndex = srcPosition; srcIndex < srcLimit; srcIndex++) {
+            final byte value = src.get(srcIndex);
+            PlatformDependent.putByte(dstAddr, value);
+            dstAddr++;
+        }
+        src.position(srcLimit);
     }
 
     static void getBytes(AbstractByteBuf buf, long addr, int index, OutputStream out, int length) throws IOException {
         buf.checkIndex(index, length);
         if (length != 0) {
-            ByteBuf tmpBuf = buf.alloc().heapBuffer(length);
-            try {
-                byte[] tmp = tmpBuf.array();
-                int offset = tmpBuf.arrayOffset();
-                PlatformDependent.copyMemory(addr, tmp, offset, length);
-                out.write(tmp, offset, length);
-            } finally {
-                tmpBuf.release();
+            int len = Math.min(length, ByteBufUtil.WRITE_CHUNK_SIZE);
+            if (len <= ByteBufUtil.MAX_TL_ARRAY_LEN || !buf.alloc().isDirectBufferPooled()) {
+                getBytes(addr, ByteBufUtil.threadLocalTempArray(len), 0, len, out, length);
+            } else {
+                // if direct buffers are pooled chances are good that heap buffers are pooled as well.
+                ByteBuf tmpBuf = buf.alloc().heapBuffer(len);
+                try {
+                    byte[] tmp = tmpBuf.array();
+                    int offset = tmpBuf.arrayOffset();
+                    getBytes(addr, tmp, offset, len, out, length);
+                } finally {
+                    tmpBuf.release();
+                }
             }
         }
+    }
+
+    private static void getBytes(long inAddr, byte[] in, int inOffset, int inLen, OutputStream out, int outLen)
+            throws IOException {
+        do {
+            int len = Math.min(inLen, outLen);
+            PlatformDependent.copyMemory(inAddr, in, inOffset, len);
+            out.write(in, inOffset, len);
+            outLen -= len;
+            inAddr += len;
+        } while (outLen > 0);
     }
 
     static void setZero(long addr, int length) {

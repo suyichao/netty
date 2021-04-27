@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -351,26 +351,22 @@ public class Http2FrameRoundtripTest {
 
     @Test
     public void pingFrameShouldMatch() throws Exception {
-        final ByteBuf data = buf("01234567".getBytes(UTF_8));
-
-        writer.writePing(ctx, false, data.slice(), ctx.newPromise());
+        writer.writePing(ctx, false, 1234567, ctx.newPromise());
         readFrames();
 
-        ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);
+        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(long.class);
         verify(listener).onPingRead(eq(ctx), captor.capture());
-        assertEquals(data, captor.getValue());
+        assertEquals(1234567, (long) captor.getValue());
     }
 
     @Test
     public void pingAckFrameShouldMatch() throws Exception {
-        final ByteBuf data = buf("01234567".getBytes(UTF_8));
-
-        writer.writePing(ctx, true, data.slice(), ctx.newPromise());
+        writer.writePing(ctx, true, 1234567, ctx.newPromise());
         readFrames();
 
-        ArgumentCaptor<ByteBuf> captor = ArgumentCaptor.forClass(ByteBuf.class);
+        ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(long.class);
         verify(listener).onPingAckRead(eq(ctx), captor.capture());
-        assertEquals(data, captor.getValue());
+        assertEquals(1234567, (long) captor.getValue());
     }
 
     @Test

@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -75,7 +75,7 @@ public class KQueueServerSocketChannelConfig extends KQueueServerChannelConfig i
 
     public KQueueServerSocketChannelConfig setReusePort(boolean reusePort) {
         try {
-            channel.socket.setReusePort(reusePort);
+            ((KQueueServerSocketChannel) channel).socket.setReusePort(reusePort);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -84,7 +84,7 @@ public class KQueueServerSocketChannelConfig extends KQueueServerChannelConfig i
 
     public boolean isReusePort() {
         try {
-            return channel.socket.isReusePort();
+            return ((KQueueServerSocketChannel) channel).socket.isReusePort();
         } catch (IOException e) {
             throw new ChannelException(e);
         }
@@ -92,7 +92,7 @@ public class KQueueServerSocketChannelConfig extends KQueueServerChannelConfig i
 
     public KQueueServerSocketChannelConfig setAcceptFilter(AcceptFilter acceptFilter) {
         try {
-            channel.socket.setAcceptFilter(acceptFilter);
+            ((KQueueServerSocketChannel) channel).socket.setAcceptFilter(acceptFilter);
             return this;
         } catch (IOException e) {
             throw new ChannelException(e);
@@ -101,7 +101,7 @@ public class KQueueServerSocketChannelConfig extends KQueueServerChannelConfig i
 
     public AcceptFilter getAcceptFilter() {
         try {
-            return channel.socket.getAcceptFilter();
+            return ((KQueueServerSocketChannel) channel).socket.getAcceptFilter();
         } catch (IOException e) {
             throw new ChannelException(e);
         }

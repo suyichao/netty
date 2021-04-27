@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -15,26 +15,42 @@
  */
 package io.netty.channel.kqueue;
 
+import io.netty.channel.unix.Buffer;
 import io.netty.util.internal.PlatformDependent;
 
+import java.nio.ByteBuffer;
+
 import static io.netty.channel.unix.Limits.SIZEOF_JLONG;
+import static io.netty.util.internal.ObjectUtil.checkPositive;
 
 final class NativeLongArray {
+    private ByteBuffer memory;
     private long memoryAddress;
     private int capacity;
     private int size;
 
     NativeLongArray(int capacity) {
-        if (capacity < 1) {
-            throw new IllegalArgumentException("capacity must be >= 1 but was " + capacity);
-        }
-        memoryAddress = PlatformDependent.allocateMemory(capacity * SIZEOF_JLONG);
-        this.capacity = capacity;
+        this.capacity = checkPositive(capacity, "capacity");
+        memory = Buffer.allocateDirectWithNativeOrder(calculateBufferCapacity(capacity));
+        memoryAddress = Buffer.memoryAddress(memory);
+    }
+
+    private static int idx(int index) {
+        return index * SIZEOF_JLONG;
+    }
+
+    private static int calculateBufferCapacity(int capacity) {
+        return capacity * SIZEOF_JLONG;
     }
 
     void add(long value) {
-        checkSize();
-        PlatformDependent.putLong(memoryOffset(size++), value);
+        reallocIfNeeded();
+        if (PlatformDependent.hasUnsafe()) {
+            PlatformDependent.putLong(memoryOffset(size), value);
+        } else {
+            memory.putLong(idx(size), value);
+        }
+        ++size;
     }
 
     void clear() {
@@ -45,8 +61,12 @@ final class NativeLongArray {
         return size == 0;
     }
 
+    int size() {
+        return size;
+    }
+
     void free() {
-        PlatformDependent.freeMemory(memoryAddress);
+        Buffer.free(memory);
         memoryAddress = 0;
     }
 
@@ -59,25 +79,25 @@ final class NativeLongArray {
     }
 
     private long memoryOffset(int index) {
-        return memoryAddress + index * SIZEOF_JLONG;
+        return memoryAddress + idx(index);
     }
 
-    private void checkSize() {
+    private void reallocIfNeeded() {
         if (size == capacity) {
-            realloc();
-        }
-    }
+            // Double the capacity while it is "sufficiently small", and otherwise increase by 50%.
+            int newLength = capacity <= 65536 ? capacity << 1 : capacity + capacity >> 1;
+            ByteBuffer buffer = Buffer.allocateDirectWithNativeOrder(calculateBufferCapacity(newLength));
+            // Copy over the old content of the memory and reset the position as we always act on the buffer as if
+            // the position was never increased.
+            memory.position(0).limit(size);
+            buffer.put(memory);
+            buffer.position(0);
 
-    private void realloc() {
-        // Double the capacity while it is "sufficiently small", and otherwise increase by 50%.
-        int newLength = capacity <= 65536 ? capacity << 1 : capacity + capacity >> 1;
-        long newMemoryAddress = PlatformDependent.reallocateMemory(memoryAddress, newLength * SIZEOF_JLONG);
-        if (newMemoryAddress == 0) {
-            throw new OutOfMemoryError("unable to allocate " + newLength + " new bytes! Existing capacity is: "
-                    + capacity);
+            Buffer.free(memory);
+            memory = buffer;
+            memoryAddress = Buffer.memoryAddress(buffer);
+            capacity = newLength;
         }
-        memoryAddress = newMemoryAddress;
-        capacity = newLength;
     }
 
     @Override

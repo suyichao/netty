@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -168,7 +168,7 @@ final class FastLz {
                         readU16(input, inOffset + ip - 1) == readU16(input, inOffset + ip + 1)) {
                     distance = 1;
                     ip += 3;
-                    ref = anchor - 1 + 3;
+                    ref = anchor + (3 - 1);
 
                     /*
                      * goto match;

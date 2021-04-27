@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -64,7 +64,7 @@ abstract class AbstractUnsafeSwappedByteBuf extends SwappedByteBuf {
 
     @Override
     public final int getInt(int index) {
-        wrapped.checkIndex0(index, 4);
+        wrapped.checkIndex(index, 4);
         int v = _getInt(wrapped, index);
         return nativeByteOrder ? v : Integer.reverseBytes(v);
     }
@@ -76,21 +76,21 @@ abstract class AbstractUnsafeSwappedByteBuf extends SwappedByteBuf {
 
     @Override
     public final short getShort(int index) {
-        wrapped.checkIndex0(index, 2);
+        wrapped.checkIndex(index, 2);
         short v = _getShort(wrapped, index);
         return nativeByteOrder ? v : Short.reverseBytes(v);
     }
 
     @Override
     public final ByteBuf setShort(int index, int value) {
-        wrapped.checkIndex0(index, 2);
+        wrapped.checkIndex(index, 2);
         _setShort(wrapped, index, nativeByteOrder ? (short) value : Short.reverseBytes((short) value));
         return this;
     }
 
     @Override
     public final ByteBuf setInt(int index, int value) {
-        wrapped.checkIndex0(index, 4);
+        wrapped.checkIndex(index, 4);
         _setInt(wrapped, index, nativeByteOrder ? value : Integer.reverseBytes(value));
         return this;
     }

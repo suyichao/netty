@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -22,6 +22,7 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.Test;
 
 import static io.netty.buffer.Unpooled.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
@@ -184,5 +185,28 @@ public class LineBasedFrameDecoderTest {
 
         buf.release();
         buf2.release();
+    }
+
+    @Test
+    public void testNotFailFast() throws Exception {
+        EmbeddedChannel ch = new EmbeddedChannel(new LineBasedFrameDecoder(2, false, false));
+        assertFalse(ch.writeInbound(wrappedBuffer(new byte[] { 0, 1, 2 })));
+        assertFalse(ch.writeInbound(wrappedBuffer(new byte[]{ 3, 4 })));
+        try {
+            ch.writeInbound(wrappedBuffer(new byte[] { '\n' }));
+            fail();
+        } catch (TooLongFrameException expected) {
+            // Expected once we received a full frame.
+        }
+        assertFalse(ch.writeInbound(wrappedBuffer(new byte[] { '5' })));
+        assertTrue(ch.writeInbound(wrappedBuffer(new byte[] { '\n' })));
+
+        ByteBuf expected = wrappedBuffer(new byte[] { '5', '\n' });
+        ByteBuf buffer = ch.readInbound();
+        assertEquals(expected, buffer);
+        expected.release();
+        buffer.release();
+
+        assertFalse(ch.finish());
     }
 }

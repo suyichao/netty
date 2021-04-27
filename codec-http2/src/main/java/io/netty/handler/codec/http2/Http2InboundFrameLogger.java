@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -94,13 +94,13 @@ public class Http2InboundFrameLogger implements Http2FrameReader {
             }
 
             @Override
-            public void onPingRead(ChannelHandlerContext ctx, ByteBuf data) throws Http2Exception {
+            public void onPingRead(ChannelHandlerContext ctx, long data) throws Http2Exception {
                 logger.logPing(INBOUND, ctx, data);
                 listener.onPingRead(ctx, data);
             }
 
             @Override
-            public void onPingAckRead(ChannelHandlerContext ctx, ByteBuf data) throws Http2Exception {
+            public void onPingAckRead(ChannelHandlerContext ctx, long data) throws Http2Exception {
                 logger.logPingAck(INBOUND, ctx, data);
                 listener.onPingAckRead(ctx, data);
             }

@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -16,19 +16,17 @@
 
 package io.netty.resolver.dns;
 
-import io.netty.util.internal.UnstableApi;
+import static io.netty.util.internal.ObjectUtil.checkNotNull;
+import static io.netty.util.internal.ObjectUtil.checkNonEmpty;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider.defaultAddressArray;
-
 /**
  * Provides an infinite sequence of DNS server addresses to {@link DnsNameResolver}.
  */
-@UnstableApi
 @SuppressWarnings("IteratorNextCanNotThrowNoSuchElementException")
 public abstract class DnsServerAddresses {
     /**
@@ -77,9 +75,9 @@ public abstract class DnsServerAddresses {
         return sequential0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses sequential0(final InetSocketAddress... addresses) {
-        if (addresses.length == 1) {
-            return singleton(addresses[0]);
+    private static DnsServerAddresses sequential0(final List<InetSocketAddress> addresses) {
+        if (addresses.size() == 1) {
+            return singleton(addresses.get(0));
         }
 
         return new DefaultDnsServerAddresses("sequential", addresses) {
@@ -106,9 +104,9 @@ public abstract class DnsServerAddresses {
         return shuffled0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses shuffled0(final InetSocketAddress[] addresses) {
-        if (addresses.length == 1) {
-            return singleton(addresses[0]);
+    private static DnsServerAddresses shuffled0(List<InetSocketAddress> addresses) {
+        if (addresses.size() == 1) {
+            return singleton(addresses.get(0));
         }
 
         return new DefaultDnsServerAddresses("shuffled", addresses) {
@@ -139,9 +137,9 @@ public abstract class DnsServerAddresses {
         return rotational0(sanitize(addresses));
     }
 
-    private static DnsServerAddresses rotational0(final InetSocketAddress[] addresses) {
-        if (addresses.length == 1) {
-            return singleton(addresses[0]);
+    private static DnsServerAddresses rotational0(List<InetSocketAddress> addresses) {
+        if (addresses.size() == 1) {
+            return singleton(addresses.get(0));
         }
 
         return new RotationalDnsServerAddresses(addresses);
@@ -151,9 +149,7 @@ public abstract class DnsServerAddresses {
      * Returns the {@link DnsServerAddresses} that yields only a single {@code address}.
      */
     public static DnsServerAddresses singleton(final InetSocketAddress address) {
-        if (address == null) {
-            throw new NullPointerException("address");
-        }
+        checkNotNull(address, "address");
         if (address.isUnresolved()) {
             throw new IllegalArgumentException("cannot use an unresolved DNS server address: " + address);
         }
@@ -161,10 +157,8 @@ public abstract class DnsServerAddresses {
         return new SingletonDnsServerAddresses(address);
     }
 
-    private static InetSocketAddress[] sanitize(Iterable<? extends InetSocketAddress> addresses) {
-        if (addresses == null) {
-            throw new NullPointerException("addresses");
-        }
+    private static List<InetSocketAddress> sanitize(Iterable<? extends InetSocketAddress> addresses) {
+        checkNotNull(addresses, "addresses");
 
         final List<InetSocketAddress> list;
         if (addresses instanceof Collection) {
@@ -183,17 +177,11 @@ public abstract class DnsServerAddresses {
             list.add(a);
         }
 
-        if (list.isEmpty()) {
-            throw new IllegalArgumentException("empty addresses");
-        }
-
-        return list.toArray(new InetSocketAddress[list.size()]);
+        return checkNonEmpty(list, "list");
     }
 
-    private static InetSocketAddress[] sanitize(InetSocketAddress[] addresses) {
-        if (addresses == null) {
-            throw new NullPointerException("addresses");
-        }
+    private static List<InetSocketAddress> sanitize(InetSocketAddress[] addresses) {
+        checkNotNull(addresses, "addresses");
 
         List<InetSocketAddress> list = new ArrayList<InetSocketAddress>(addresses.length);
         for (InetSocketAddress a: addresses) {
@@ -207,10 +195,10 @@ public abstract class DnsServerAddresses {
         }
 
         if (list.isEmpty()) {
-            return defaultAddressArray();
+            return DefaultDnsServerAddressStreamProvider.defaultAddressList();
         }
 
-        return list.toArray(new InetSocketAddress[list.size()]);
+        return list;
     }
 
     /**

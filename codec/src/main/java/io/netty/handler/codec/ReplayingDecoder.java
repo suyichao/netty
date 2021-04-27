@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -64,7 +64,7 @@ import java.util.List;
  *      extends {@link ReplayingDecoder}&lt;{@link Void}&gt; {
  *
  *   protected void decode({@link ChannelHandlerContext} ctx,
- *                           {@link ByteBuf} buf) throws Exception {
+ *                           {@link ByteBuf} buf, List&lt;Object&gt; out) throws Exception {
  *
  *     out.add(buf.readBytes(buf.readInt()));
  *   }
@@ -327,11 +327,10 @@ public abstract class ReplayingDecoder<S> extends ByteToMessageDecoder {
             replayable.terminate();
             if (cumulation != null) {
                 callDecode(ctx, internalBuffer(), out);
-                decodeLast(ctx, replayable, out);
             } else {
                 replayable.setCumulation(Unpooled.EMPTY_BUFFER);
-                decodeLast(ctx, replayable, out);
             }
+            decodeLast(ctx, replayable, out);
         } catch (Signal replay) {
             // Ignore
             replay.expect(REPLAY);

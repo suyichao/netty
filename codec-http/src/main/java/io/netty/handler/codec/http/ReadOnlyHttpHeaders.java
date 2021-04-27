@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -30,6 +30,7 @@ import java.util.Set;
 
 import static io.netty.handler.codec.CharSequenceValueConverter.INSTANCE;
 import static io.netty.handler.codec.http.DefaultHttpHeaders.HttpNameValidator;
+import static io.netty.util.AsciiString.contentEquals;
 import static io.netty.util.AsciiString.contentEqualsIgnoreCase;
 
 /**
@@ -76,8 +77,9 @@ public final class ReadOnlyHttpHeaders extends HttpHeaders {
         final int nameHash = AsciiString.hashCode(name);
         for (int i = 0; i < nameValuePairs.length; i += 2) {
             CharSequence roName = nameValuePairs[i];
-            if (roName.hashCode() == nameHash && contentEqualsIgnoreCase(roName, name)) {
-                return nameValuePairs[i + 1];
+            if (AsciiString.hashCode(roName) == nameHash && contentEqualsIgnoreCase(roName, name)) {
+                // Suppress a warning out of bounds access since the constructor allows only pairs
+                return nameValuePairs[i + 1]; // lgtm[java/index-out-of-bounds]
             }
         }
         return null;
@@ -134,8 +136,8 @@ public final class ReadOnlyHttpHeaders extends HttpHeaders {
         List<String> values = new ArrayList<String>(4);
         for (int i = 0; i < nameValuePairs.length; i += 2) {
             CharSequence roName = nameValuePairs[i];
-            if (roName.hashCode() == nameHash && contentEqualsIgnoreCase(roName, name)) {
-                values.add(nameValuePairs[i + 1].toString());
+            if (AsciiString.hashCode(roName) == nameHash && contentEqualsIgnoreCase(roName, name)) {
+                values.add(nameValuePairs[i + 1].toString()); // lgtm[java/index-out-of-bounds]
             }
         }
         return values;
@@ -149,7 +151,7 @@ public final class ReadOnlyHttpHeaders extends HttpHeaders {
         List<Map.Entry<String, String>> entries = new ArrayList<Map.Entry<String, String>>(size());
         for (int i = 0; i < nameValuePairs.length; i += 2) {
             entries.add(new SimpleImmutableEntry<String, String>(nameValuePairs[i].toString(),
-                    nameValuePairs[i + 1].toString()));
+                    nameValuePairs[i + 1].toString())); // lgtm[java/index-out-of-bounds]
         }
         return entries;
     }
@@ -157,6 +159,41 @@ public final class ReadOnlyHttpHeaders extends HttpHeaders {
     @Override
     public boolean contains(String name) {
         return get0(name) != null;
+    }
+
+    @Override
+    public boolean contains(String name, String value, boolean ignoreCase) {
+        return containsValue(name, value, ignoreCase);
+    }
+
+    @Override
+    public boolean containsValue(CharSequence name, CharSequence value, boolean ignoreCase) {
+        if (ignoreCase) {
+            for (int i = 0; i < nameValuePairs.length; i += 2) {
+                if (contentEqualsIgnoreCase(nameValuePairs[i], name) &&
+                        contentEqualsIgnoreCase(nameValuePairs[i + 1], value)) { // lgtm[java/index-out-of-bounds]
+                    return true;
+                }
+            }
+        } else {
+            for (int i = 0; i < nameValuePairs.length; i += 2) {
+                if (contentEqualsIgnoreCase(nameValuePairs[i], name) &&
+                        contentEquals(nameValuePairs[i + 1], value)) { // lgtm[java/index-out-of-bounds]
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Iterator<String> valueStringIterator(CharSequence name) {
+        return new ReadOnlyStringValueIterator(name);
+    }
+
+    @Override
+    public Iterator<CharSequence> valueCharSequenceIterator(CharSequence name) {
+        return new ReadOnlyValueIterator(name);
     }
 
     @Override
@@ -334,6 +371,90 @@ public final class ReadOnlyHttpHeaders extends HttpHeaders {
         @Override
         public String toString() {
             return key + '=' + value;
+        }
+    }
+
+    private final class ReadOnlyStringValueIterator implements Iterator<String> {
+        private final CharSequence name;
+        private final int nameHash;
+        private int nextNameIndex;
+
+        ReadOnlyStringValueIterator(CharSequence name) {
+            this.name = name;
+            nameHash = AsciiString.hashCode(name);
+            nextNameIndex = findNextValue();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextNameIndex != -1;
+        }
+
+        @Override
+        public String next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            String value = nameValuePairs[nextNameIndex + 1].toString();
+            nextNameIndex = findNextValue();
+            return value;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("read only");
+        }
+
+        private int findNextValue() {
+            for (int i = nextNameIndex; i < nameValuePairs.length; i += 2) {
+                final CharSequence roName = nameValuePairs[i];
+                if (nameHash == AsciiString.hashCode(roName) && contentEqualsIgnoreCase(name, roName)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+    }
+
+    private final class ReadOnlyValueIterator implements Iterator<CharSequence> {
+        private final CharSequence name;
+        private final int nameHash;
+        private int nextNameIndex;
+
+        ReadOnlyValueIterator(CharSequence name) {
+            this.name = name;
+            nameHash = AsciiString.hashCode(name);
+            nextNameIndex = findNextValue();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return nextNameIndex != -1;
+        }
+
+        @Override
+        public CharSequence next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            CharSequence value = nameValuePairs[nextNameIndex + 1];
+            nextNameIndex = findNextValue();
+            return value;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("read only");
+        }
+
+        private int findNextValue() {
+            for (int i = nextNameIndex; i < nameValuePairs.length; i += 2) {
+                final CharSequence roName = nameValuePairs[i];
+                if (nameHash == AsciiString.hashCode(roName) && contentEqualsIgnoreCase(name, roName)) {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }

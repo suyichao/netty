@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -14,6 +14,8 @@
  */
 package io.netty.handler.codec;
 
+import io.netty.util.AsciiString;
+import io.netty.util.HashingStrategy;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -25,6 +27,9 @@ import java.util.NoSuchElementException;
 
 import static io.netty.util.AsciiString.of;
 import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -40,8 +45,16 @@ public class DefaultHeadersTest {
 
     private static final class TestDefaultHeaders extends
             DefaultHeaders<CharSequence, CharSequence, TestDefaultHeaders> {
-        public TestDefaultHeaders() {
-            super(CharSequenceValueConverter.INSTANCE);
+        TestDefaultHeaders() {
+            this(CharSequenceValueConverter.INSTANCE);
+        }
+
+        TestDefaultHeaders(ValueConverter<CharSequence> converter) {
+            super(converter);
+        }
+
+        TestDefaultHeaders(HashingStrategy<CharSequence> nameHashingStrategy) {
+            super(nameHashingStrategy, CharSequenceValueConverter.INSTANCE);
         }
     }
 
@@ -105,20 +118,84 @@ public class DefaultHeadersTest {
     }
 
     @Test
+    public void multipleValuesPerNameIteratorWithOtherNames() {
+        TestDefaultHeaders headers = newInstance();
+        headers.add(of("name1"), of("value1"));
+        headers.add(of("name1"), of("value2"));
+        headers.add(of("name2"), of("value4"));
+        headers.add(of("name1"), of("value3"));
+        assertEquals(4, headers.size());
+
+        List<CharSequence> values = new ArrayList<CharSequence>();
+        Iterator<CharSequence> itr = headers.valueIterator(of("name1"));
+        while (itr.hasNext()) {
+            values.add(itr.next());
+            itr.remove();
+        }
+        assertEquals(3, values.size());
+        assertEquals(1, headers.size());
+        assertFalse(headers.isEmpty());
+        assertTrue(values.containsAll(asList(of("value1"), of("value2"), of("value3"))));
+        itr = headers.valueIterator(of("name1"));
+        assertFalse(itr.hasNext());
+        itr = headers.valueIterator(of("name2"));
+        assertTrue(itr.hasNext());
+        assertEquals(of("value4"), itr.next());
+        assertFalse(itr.hasNext());
+    }
+
+    @Test
     public void multipleValuesPerNameIterator() {
         TestDefaultHeaders headers = newInstance();
+        headers.add(of("name1"), of("value1"));
+        headers.add(of("name1"), of("value2"));
+        assertEquals(2, headers.size());
+
+        List<CharSequence> values = new ArrayList<CharSequence>();
+        Iterator<CharSequence> itr = headers.valueIterator(of("name1"));
+        while (itr.hasNext()) {
+            values.add(itr.next());
+            itr.remove();
+        }
+        assertEquals(2, values.size());
+        assertEquals(0, headers.size());
+        assertTrue(headers.isEmpty());
+        assertTrue(values.containsAll(asList(of("value1"), of("value2"))));
+        itr = headers.valueIterator(of("name1"));
+        assertFalse(itr.hasNext());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void valuesItrRemoveThrowsWhenEmpty() {
+        TestDefaultHeaders headers = newInstance();
+        assertEquals(0, headers.size());
+        assertTrue(headers.isEmpty());
+        Iterator<CharSequence> itr = headers.valueIterator(of("name"));
+        itr.remove();
+    }
+
+    @Test
+    public void valuesItrRemoveThrowsAfterLastElement() {
+        TestDefaultHeaders headers = newInstance();
         headers.add(of("name"), of("value1"));
-        headers.add(of("name"), of("value2"));
-        headers.add(of("name"), of("value3"));
-        assertEquals(3, headers.size());
+        assertEquals(1, headers.size());
 
         List<CharSequence> values = new ArrayList<CharSequence>();
         Iterator<CharSequence> itr = headers.valueIterator(of("name"));
         while (itr.hasNext()) {
             values.add(itr.next());
+            itr.remove();
         }
-        assertEquals(3, values.size());
-        assertTrue(values.containsAll(asList(of("value1"), of("value2"), of("value3"))));
+        assertEquals(1, values.size());
+        assertEquals(0, headers.size());
+        assertTrue(headers.isEmpty());
+        assertTrue(values.contains(of("value1")));
+        try {
+            itr.remove();
+            fail();
+        } catch (IllegalStateException ignored) {
+            // ignored
+        }
     }
 
     @Test
@@ -437,6 +514,24 @@ public class DefaultHeadersTest {
     }
 
     @Test
+    public void testEntryEquals() {
+        Map.Entry<CharSequence, CharSequence> same1 = newInstance().add("name", "value").iterator().next();
+        Map.Entry<CharSequence, CharSequence> same2 = newInstance().add("name", "value").iterator().next();
+        assertEquals(same1, same2);
+        assertEquals(same1.hashCode(), same2.hashCode());
+
+        Map.Entry<CharSequence, CharSequence> nameDifferent1 = newInstance().add("name1", "value").iterator().next();
+        Map.Entry<CharSequence, CharSequence> nameDifferent2 = newInstance().add("name2", "value").iterator().next();
+        assertNotEquals(nameDifferent1, nameDifferent2);
+        assertNotEquals(nameDifferent1.hashCode(), nameDifferent2.hashCode());
+
+        Map.Entry<CharSequence, CharSequence> valueDifferent1 = newInstance().add("name", "value1").iterator().next();
+        Map.Entry<CharSequence, CharSequence> valueDifferent2 = newInstance().add("name", "value2").iterator().next();
+        assertNotEquals(valueDifferent1, valueDifferent2);
+        assertNotEquals(valueDifferent1.hashCode(), valueDifferent2.hashCode());
+    }
+
+    @Test
     public void getAllReturnsEmptyListForUnknownName() {
         TestDefaultHeaders headers = newInstance();
         assertEquals(0, headers.getAll(of("noname")).size());
@@ -508,5 +603,214 @@ public class DefaultHeadersTest {
 
         headers = newInstance();
         assertEquals("TestDefaultHeaders[]", headers.toString());
+    }
+
+    @Test
+    public void testNotThrowWhenConvertFails() {
+        TestDefaultHeaders headers = new TestDefaultHeaders(new ValueConverter<CharSequence>() {
+            @Override
+            public CharSequence convertObject(Object value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertBoolean(boolean value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public boolean convertToBoolean(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertByte(byte value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public byte convertToByte(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertChar(char value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public char convertToChar(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertShort(short value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public short convertToShort(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertInt(int value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public int convertToInt(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertLong(long value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public long convertToLong(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertTimeMillis(long value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public long convertToTimeMillis(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertFloat(float value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public float convertToFloat(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public CharSequence convertDouble(double value) {
+                throw new IllegalArgumentException();
+            }
+
+            @Override
+            public double convertToDouble(CharSequence value) {
+                throw new IllegalArgumentException();
+            }
+        });
+        headers.set("name1", "");
+        assertNull(headers.getInt("name1"));
+        assertEquals(1, headers.getInt("name1", 1));
+
+        assertNull(headers.getBoolean(""));
+        assertFalse(headers.getBoolean("name1", false));
+
+        assertNull(headers.getByte("name1"));
+        assertEquals(1, headers.getByte("name1", (byte) 1));
+
+        assertNull(headers.getChar("name"));
+        assertEquals('n', headers.getChar("name1", 'n'));
+
+        assertNull(headers.getDouble("name"));
+        assertEquals(1, headers.getDouble("name1", 1), 0);
+
+        assertNull(headers.getFloat("name"));
+        assertEquals(Float.MAX_VALUE, headers.getFloat("name1", Float.MAX_VALUE), 0);
+
+        assertNull(headers.getLong("name"));
+        assertEquals(Long.MAX_VALUE, headers.getLong("name1", Long.MAX_VALUE));
+
+        assertNull(headers.getShort("name"));
+        assertEquals(Short.MAX_VALUE, headers.getShort("name1", Short.MAX_VALUE));
+
+        assertNull(headers.getTimeMillis("name"));
+        assertEquals(Long.MAX_VALUE, headers.getTimeMillis("name1", Long.MAX_VALUE));
+    }
+
+    @Test
+    public void testGetBooleanInvalidValue() {
+        TestDefaultHeaders headers = newInstance();
+        headers.set("name1", "invalid");
+        headers.set("name2", new AsciiString("invalid"));
+        headers.set("name3", new StringBuilder("invalid"));
+
+        assertFalse(headers.getBoolean("name1", false));
+        assertFalse(headers.getBoolean("name2", false));
+        assertFalse(headers.getBoolean("name3", false));
+    }
+
+    @Test
+    public void testGetBooleanFalseValue() {
+        TestDefaultHeaders headers = newInstance();
+        headers.set("name1", "false");
+        headers.set("name2", new AsciiString("false"));
+        headers.set("name3", new StringBuilder("false"));
+
+        assertFalse(headers.getBoolean("name1", true));
+        assertFalse(headers.getBoolean("name2", true));
+        assertFalse(headers.getBoolean("name3", true));
+    }
+
+    @Test
+    public void testGetBooleanTrueValue() {
+        TestDefaultHeaders headers = newInstance();
+        headers.set("name1", "true");
+        headers.set("name2", new AsciiString("true"));
+        headers.set("name3", new StringBuilder("true"));
+
+        assertTrue(headers.getBoolean("name1", false));
+        assertTrue(headers.getBoolean("name2", false));
+        assertTrue(headers.getBoolean("name3", false));
+    }
+
+    @Test
+    public void handlingOfHeaderNameHashCollisions() {
+        TestDefaultHeaders headers = new TestDefaultHeaders(new HashingStrategy<CharSequence>() {
+            @Override
+            public int hashCode(CharSequence obj) {
+                return 0; // Degenerate hashing strategy to enforce collisions.
+            }
+
+            @Override
+            public boolean equals(CharSequence a, CharSequence b) {
+                return a.equals(b);
+            }
+        });
+
+        headers.add("Cookie", "a=b; c=d; e=f");
+        headers.add("other", "text/plain");  // Add another header which will be saved in the same entries[index]
+
+        simulateCookieSplitting(headers);
+        List<CharSequence> cookies = headers.getAll("Cookie");
+
+        assertThat(cookies, hasSize(3));
+        assertThat(cookies, containsInAnyOrder((CharSequence) "a=b", "c=d", "e=f"));
+    }
+
+    /**
+     * Split up cookies into individual cookie crumb headers.
+     */
+    static void simulateCookieSplitting(TestDefaultHeaders headers) {
+        Iterator<CharSequence> cookieItr = headers.valueIterator("Cookie");
+        if (!cookieItr.hasNext()) {
+            return;
+        }
+        // We want to avoid "concurrent modifications" of the headers while we are iterating. So we insert crumbs
+        // into an intermediate collection and insert them after the split process concludes.
+        List<CharSequence> cookiesToAdd = new ArrayList<CharSequence>();
+        while (cookieItr.hasNext()) {
+            //noinspection DynamicRegexReplaceableByCompiledPattern
+            String[] cookies = cookieItr.next().toString().split("; ");
+            cookiesToAdd.addAll(asList(cookies));
+            cookieItr.remove();
+        }
+        for (CharSequence crumb : cookiesToAdd) {
+            headers.add("Cookie", crumb);
+        }
     }
 }

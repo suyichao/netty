@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -14,6 +14,10 @@
  * under the License.
  */
 package io.netty.handler.traffic;
+
+import static io.netty.util.internal.ObjectUtil.checkNotNullWithIAE;
+import static io.netty.util.internal.ObjectUtil.checkPositive;
+import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -147,9 +151,7 @@ public class GlobalChannelTrafficShapingHandler extends AbstractTrafficShapingHa
     void createGlobalTrafficCounter(ScheduledExecutorService executor) {
         // Default
         setMaxDeviation(DEFAULT_DEVIATION, DEFAULT_SLOWDOWN, DEFAULT_ACCELERATION);
-        if (executor == null) {
-            throw new IllegalArgumentException("Executor must not be null");
-        }
+        checkNotNullWithIAE(executor, "executor");
         TrafficCounter tc = new GlobalChannelTrafficCounter(this, executor, "GlobalChannelTC", checkInterval);
         setTrafficCounter(tc);
         tc.start();
@@ -299,9 +301,7 @@ public class GlobalChannelTrafficShapingHandler extends AbstractTrafficShapingHa
         if (maxDeviation > MAX_DEVIATION) {
             throw new IllegalArgumentException("maxDeviation must be <= " + MAX_DEVIATION);
         }
-        if (slowDownFactor < 0) {
-            throw new IllegalArgumentException("slowDownFactor must be >= 0");
-        }
+        checkPositiveOrZero(slowDownFactor, "slowDownFactor");
         if (accelerationFactor > 0) {
             throw new IllegalArgumentException("accelerationFactor must be <= 0");
         }
@@ -385,10 +385,7 @@ public class GlobalChannelTrafficShapingHandler extends AbstractTrafficShapingHa
      *            globally for all channels before write suspended is set.
      */
     public void setMaxGlobalWriteSize(long maxGlobalWriteSize) {
-        if (maxGlobalWriteSize <= 0) {
-            throw new IllegalArgumentException("maxGlobalWriteSize must be positive");
-        }
-        this.maxGlobalWriteSize = maxGlobalWriteSize;
+        this.maxGlobalWriteSize = checkPositive(maxGlobalWriteSize, "maxGlobalWriteSize");
     }
 
     /**
@@ -547,17 +544,18 @@ public class GlobalChannelTrafficShapingHandler extends AbstractTrafficShapingHa
             if (wait >= MINIMAL_WAIT) { // At least 10ms seems a minimal
                 // time in order to try to limit the traffic
                 // Only AutoRead AND HandlerActive True means Context Active
-                ChannelConfig config = ctx.channel().config();
+                Channel channel = ctx.channel();
+                ChannelConfig config = channel.config();
                 if (logger.isDebugEnabled()) {
                     logger.debug("Read Suspend: " + wait + ':' + config.isAutoRead() + ':'
                             + isHandlerActive(ctx));
                 }
                 if (config.isAutoRead() && isHandlerActive(ctx)) {
                     config.setAutoRead(false);
-                    ctx.attr(READ_SUSPENDED).set(true);
+                    channel.attr(READ_SUSPENDED).set(true);
                     // Create a Runnable to reactive the read if needed. If one was create before it will just be
                     // reused to limit object creation
-                    Attribute<Runnable> attr = ctx.attr(REOPEN_TASK);
+                    Attribute<Runnable> attr = channel.attr(REOPEN_TASK);
                     Runnable reopenTask = attr.get();
                     if (reopenTask == null) {
                         reopenTask = new ReopenReadTimerTask(ctx);

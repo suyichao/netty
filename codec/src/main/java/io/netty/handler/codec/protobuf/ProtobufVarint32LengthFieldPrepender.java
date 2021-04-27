@@ -5,7 +5,7 @@
  * version 2.0 (the "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at:
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
@@ -23,7 +23,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
 /**
- * An encoder that prepends the the Google Protocol Buffers
+ * An encoder that prepends the Google Protocol Buffers
  * <a href="https://developers.google.com/protocol-buffers/docs/encoding?csw=1#varints">Base
  * 128 Varints</a> integer length field. For example:
  * <pre>
